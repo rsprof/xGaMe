@@ -9,6 +9,7 @@ class Game {
 
     render() {
         this.ctx.fillStyle = 'red';
+        this.player.update();
         this.player.draw();
     }
 }
@@ -20,5 +21,12 @@ window.addEventListener('load', function() {
     canvas.height = 720;
 
     const game = new Game(canvas, ctx);
-    game.render();
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        game.render();
+        requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
 });
