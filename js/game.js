@@ -14,6 +14,7 @@ class Game {
         this.speed;
         this.score;
         this.gameOver;
+        this.timer; //Timer
 
         this.resize(window.innerWidth, window.innerHeight);
 
@@ -60,9 +61,12 @@ class Game {
 
         this.score = 0;
         this.gameOver = false;
+        this.timer = 0;  //Timer
     }
 
-    render() {
+    render(deltaTime) {  //Timer
+        console.log(deltaTime);  //Timer
+        if(!this.gameOver) this.timer += deltaTime;  //Timer
         this.background.update();
         this.background.draw();
         this.drawStatusText();
@@ -84,10 +88,23 @@ class Game {
         }
     }
 
+    formatTimer()   {  //Timer
+        return (this.timer * 0.001).toFixed(1);  //Timer
+    }  //Timer
+
     drawStatusText()    {
         this.ctx.save();
         this.ctx.fillStyle = '#FFFFFF';
         this.ctx.fillText('Score: ' + this.score, this.width - 10, 30);
+        this.ctx.textAlign = 'left';  //Timer
+        this.ctx.fillText('Timer: ' + this.formatTimer(), 10, 30);  //Timer
+        
+        if(this.gameOver) {  //Game Over
+            this.ctx.font = '30px Bungee';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('GAME OVER!', this.width * 0.5, this.height * 0.5);  //Game Over
+        } //Game Over
+
         this.ctx.restore();
     }
 }
@@ -100,10 +117,13 @@ window.addEventListener('load', function() {
 
     const game = new Game(canvas, ctx);
 
-    function animate() {
+    let lastTime = 0;  //Timer
+    function animate(timeStamp) {  //Timer
+        const deltaTime = timeStamp - lastTime;  //Timer
+        lastTime = timeStamp;  //Timer
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        game.render();
-        if(!game.gameOver) requestAnimationFrame(animate);
+        game.render(deltaTime);
+        requestAnimationFrame(animate);  //Game Over
     }
 
     requestAnimationFrame(animate);
