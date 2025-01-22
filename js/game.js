@@ -15,11 +15,18 @@ class Game {
         this.score;
         this.gameOver;
         this.timer;
-        this.message1;  //Win or Lose
-        this.message2;  //Win or Lose
+        this.message1;
+        this.message2;
+        this.minSpeed;
+        this.maxSpeed;
+        this.eventTimer = 0;
+        this.eventInterval = 150;
+        this.eventUpdate = false;
+        this.touchStarX; //Detect Swipes
+        this.swipeDistance = 50; //Detect Swipes
 
         this.resize(window.innerWidth, window.innerHeight);
-
+        
         window.addEventListener('resize', e => {
             this.resize(e.currentTarget.innerWidth, e.currentTarget.innerHeight);
         });
@@ -34,12 +41,23 @@ class Game {
             if((e.key === ' ') || (e.key === 'Enter'))  {
                 this.player.flap();
             }
+
+            if((e.key === 'Shift') || (e.key.toLowerCase() === 'c'))  {
+                this.player.startCharge();
+            }
         });
 
         // Touch controls
         this.canvas.addEventListener('touchstart', e => {
             this.player.flap();
+            this.touchStartX = e.changedTouches[0].pageX;
         });
+
+        this.canvas.addEventListener('touchmove', e => { //Detect Swipes
+            if(e.changedTouches[0].pageX - this.touchStartX > this.swipeDistance)    { //Detect Swipes
+                this.player.startCharge(); //Detect Swipes
+            } //Detect Swipes
+        }); //Detect Swipes
     }
 
     resize(width, height)    {
@@ -47,15 +65,17 @@ class Game {
         this.canvas.height = height;
         this.width = this.canvas.width;
         this.height = this.canvas.height;
-        this.ctx.fillStyle = '#5995F2';
         this.ctx.font = '15px Bungee';
         this.ctx.textAlign = 'right';
-        this.ctx.lineWidth = 3;   //Collision
-        this.ctx.strokeStyle = 'white';   //Collision
+        this.ctx.lineWidth = 3;
+        this.ctx.strokeStyle = 'white';
         this.ratio = this.height / this.baseHeight;
 
         this.gravity = 0.15 * this.ratio;
         this.speed = 3 * this.ratio;
+        this.minSpeed = this.speed;
+        this.maxSpeed = this.speed * 5;
+
         this.background.resize();
         this.player.resize();
         this.createObstacles();
@@ -69,8 +89,8 @@ class Game {
     }
 
     render(deltaTime) {
-        console.log(deltaTime);
         if(!this.gameOver) this.timer += deltaTime;
+        this.handlePeriodicEvents(deltaTime);
         this.background.update();
         this.background.draw();
         this.drawStatusText();
@@ -96,6 +116,17 @@ class Game {
         return (this.timer * 0.001).toFixed(1);
     }
 
+    handlePeriodicEvents(deltaTime)  {
+        if(this.eventTimer < this.eventInterval)    {
+            this.eventTimer += deltaTime;
+            this.eventUpdate = false;
+        }
+        else    {
+            this.eventTimer = this.eventTimer % this.eventInterval;
+            this.eventUpdate = true;
+        }
+    }
+
     drawStatusText()    {
         this.ctx.save();
         this.ctx.fillStyle = '#FFFFFF';
@@ -104,33 +135,46 @@ class Game {
         this.ctx.fillText('Timer: ' + this.formatTimer(), 10, 30);
         
         if(this.gameOver) {
-            if(this.player.collided)    {  //Win or Lose
-                this.message1 = "Getting rusty?";  //Win or Lose
-                this.message2 = "Collison time " + this.formatTimer() + " seconds!";  //Win or Lose
-            }  //Win or Lose
-            else    {  //Win or Lose
-                this.message1 = "Nailed it!";  //Win or Lose
-                this.message2 = "Can you do it faster than " + this.formatTimer() + " seconds?";  //Win or Lose
-            }  //Win or Lose
+            if(this.player.collided)    {
+                this.message1 = "Getting rusty?";
+                this.message2 = "Collison time " + this.formatTimer() + " seconds!";
+            }
+            else    {
+                this.message1 = "Nailed it!";
+                this.message2 = "Can you do it faster than " + this.formatTimer() + " seconds?";
+            }
 
             this.ctx.font = '30px Bungee';
             this.ctx.textAlign = 'center';
-            this.ctx.fillText(this.message1, this.width * 0.5, this.height * 0.5 - 40);  //Win or Lose
-            this.ctx.font = '15px Bungee';  //Win or Lose
-            this.ctx.fillText(this.message2, this.width * 0.5, this.height * 0.5 - 20);  //Win or Lose
-            this.ctx.fillText("Press 'R' to try again!", this.width * 0.5, this.height * 0.5);  //Win or Lose
+            this.ctx.fillText(this.message1, this.width * 0.5, this.height * 0.5 - 40);
+            this.ctx.font = '15px Bungee';
+            this.ctx.fillText(this.message2, this.width * 0.5, this.height * 0.5 - 20);
+            this.ctx.fillText("Press 'R' to try again!", this.width * 0.5, this.height * 0.5);
+        }
+
+        if(this.player.energy <= 20)    {
+            this.ctx.fillStyle = '#FF1100';
+        }
+        else if(this.player.energy >= this.player.maxEnergy)    {
+            this.ctx.fillStyle = '#89F336';
+        }
+        else    {
+            this.ctx.fillStyle = '#00B4D8';
+        }
+
+        for(let i = 0; i < this.player.energy; i++)   {       
+            this.ctx.fillRect(10, this.height - 10 - this.player.barSize * i, this.player.barSize * 5, this.player.barSize);
         }
 
         this.ctx.restore();
     }
 
-    checkCollision(a, b)    {   //Collision
-        const dx = a.collisionX - b.collisionX;   //Collision
-        const dy = a.collisionY - b.collisionY;   //Collision
-        const distance = Math.sqrt(dx * dx + dy * dy);   //Collision
-        //const distance = Math.hypot(dx, dy);   //Collision
-        const sumOfRadii = a.collisionRadius + b.collisionRadius;   //Collision
-        return distance <= sumOfRadii;   //Collision
+    checkCollision(a, b)    {
+        const dx = a.collisionX - b.collisionX;
+        const dy = a.collisionY - b.collisionY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const sumOfRadii = a.collisionRadius + b.collisionRadius;
+        return distance <= sumOfRadii;
     }
 }
 
